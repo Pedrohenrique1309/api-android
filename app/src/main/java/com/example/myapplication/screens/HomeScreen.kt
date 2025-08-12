@@ -1,12 +1,12 @@
 package com.example.myapplication.screens
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,23 +34,44 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.evaluateCubic
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplication.R
 import com.example.myapplication.model.Cliente
+import com.example.myapplication.service.RetrofitFactory
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import okhttp3.internal.connection.RouteException
-import kotlin.math.cos
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import retrofit2.await
 
+@SuppressLint("CoroutineCreationDuringComposition")
+@OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun HomeScreen (modifier: Modifier = Modifier){
+
+    //Criar uma instancia do ReftrofitFactory
+    val clienteApi = RetrofitFactory().getClienteService()
+
+    //Criar uma variavel de estado para armazenar a lista de clientes
+    var clientes by remember {
+        mutableStateOf(listOf<Cliente>())
+    }
+
+    LaunchedEffect(Dispatchers.IO) {
+        clientes = clienteApi.exibirTodos().await()
+        println(clientes)
+    }
 
     Scaffold (
         topBar = {
@@ -78,11 +99,14 @@ fun HomeScreen (modifier: Modifier = Modifier){
                     contentDescription = ""
                 ) 
                 Text(text = "Lista de Clientes",
-                    color = MaterialTheme.colorScheme.onPrimary)
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier
+                        .padding(bottom = 10.dp,
+                            top =  10.dp))
             }
             LazyColumn {
-                items (10) {
-                    ClienteCard()
+                items (clientes) { cliente ->
+                    ClienteCard(cliente)
                 }
             }
         }
@@ -92,7 +116,7 @@ fun HomeScreen (modifier: Modifier = Modifier){
 }
 
 @Composable
-fun ClienteCard (modifier: Modifier = Modifier){
+fun ClienteCard (cliente: Cliente){
 
     Card (
 
@@ -100,7 +124,8 @@ fun ClienteCard (modifier: Modifier = Modifier){
             .fillMaxWidth()
             .height(70.dp)
             .padding(start = 8.dp,
-                end = 8.dp),
+                end = 8.dp,
+                bottom = 8.dp),
         colors = CardDefaults.cardColors(
             contentColor = MaterialTheme.colorScheme.primary
         )
@@ -113,8 +138,8 @@ fun ClienteCard (modifier: Modifier = Modifier){
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = "Nome do Cliente")
-                Text(text = "E-mail do Cliente")
+                Text(text = cliente.nome, fontWeight = FontWeight.Bold),
+                Text(text = cliente.email, fontSize = 12.dp)
             }
             Icon(
                 imageVector = Icons.Default.Delete,
@@ -128,7 +153,7 @@ fun ClienteCard (modifier: Modifier = Modifier){
 @Preview
 @Composable
 private fun ClienteCardPreview(){
-    ClienteCard()
+    ClienteCard(Cliente())
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
