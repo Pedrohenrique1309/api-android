@@ -6,31 +6,40 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -47,18 +56,65 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.R
 import com.example.myapplication.model.Cliente
+import com.example.myapplication.service.ClienteService
 import com.example.myapplication.service.RetrofitFactory
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import retrofit2.await
 
 @SuppressLint("CoroutineCreationDuringComposition")
 @OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun HomeScreen (modifier: Modifier = Modifier){
+
+    var navController = rememberNavController()
+
+    Scaffold (
+        topBar = {
+            BarraDeTitulo()
+        },
+        bottomBar = {
+            BarraDeNavegacao(navController)
+        },
+        floatingActionButton = {
+            BotaoFlutuante(navController)
+        },
+        content = {
+                paddingValues ->
+            Column (
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+                    .background(
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+            ){
+
+                NavHost(
+                    navController = navController,
+                    startDestination = "Home"
+                ){
+                    composable (route = "Home"){TelaHome(paddingValues)  }
+                    composable (route = "Form") { FormCliente(navController) }
+                }
+
+            }
+        }
+    )
+}
+
+@Composable
+fun TelaHome(paddingValues: PaddingValues){
 
     //Criar uma instancia do ReftrofitFactory
     val clienteApi = RetrofitFactory().getClienteService()
@@ -73,50 +129,74 @@ fun HomeScreen (modifier: Modifier = Modifier){
         println(clientes)
     }
 
-    Scaffold (
-        topBar = {
-            BarraDeTitulo()
-        },
-        bottomBar = {
-            BarraDeNavegacao()
-        },
-        floatingActionButton = {
-            BotaoFlutuante()
-        }
-    ) {
-        paddingValues ->
-        Column (
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-                .background(
-                    color = MaterialTheme.colorScheme.onBackground
+    Row {
+            Icon(
+                imageVector = Icons.Default.AccountBox,
+                contentDescription = ""
+            )
+             Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Lista de Clientes"
                 )
-        ){
-            Row {
-                Icon(
-                    imageVector = Icons.Default.AccountBox,
-                    contentDescription = ""
-                ) 
-                Text(text = "Lista de Clientes",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier
-                        .padding(bottom = 10.dp,
-                            top =  10.dp))
             }
-            LazyColumn {
-                items (clientes) { cliente ->
-                    ClienteCard(cliente)
+            LazyColumn (
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ){
+                items(clientes) { cliente ->
+                    ClienteCard(cliente,clienteApi)
                 }
             }
-        }
-    }
 
 
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 @Composable
-fun ClienteCard (cliente: Cliente){
+fun ClienteCard (cliente: Cliente, clienteApi: ClienteService?){
+
+
+    var mostrarConfirmacaoExclusao by remember {
+        mutableStateOf(false)
+    }
+
+    if (mostrarConfirmacaoExclusao){
+        AlertDialog(
+            onDismissRequest = {
+                mostrarConfirmacaoExclusao = false
+            },
+            title = {
+                Text(text = "Excluir")
+            },
+            text = {
+                Text(text = "Confirma a exclusao do cliente ${cliente.nome} ?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        GlobalScope.launch(Dispatchers.IO){
+                            clienteApi!!.excluir(cliente).await()
+
+                        }
+                    }
+                ) {
+                    Text(text = "Confirmar")
+                    Icon(
+                       imageVector = Icons.Default.Check,
+                        contentDescription = ""
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        mostrarConfirmacaoExclusao = false
+                    }
+                ) {
+                    Text(text = "Cancelar")
+                }
+            }
+        )
+    }
 
     Card (
 
@@ -138,13 +218,19 @@ fun ClienteCard (cliente: Cliente){
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(text = cliente.nome, fontWeight = FontWeight.Bold),
-                Text(text = cliente.email, fontSize = 12.dp)
+                Text(text = cliente.nome, fontWeight = FontWeight.Bold)
+                Text(text = cliente.email, fontSize = 12.sp)
             }
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Excluir"
-            )
+            IconButton(
+                onClick = {
+                    mostrarConfirmacaoExclusao = true
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Excluir"
+                )
+            }
         }
     }
 
@@ -153,7 +239,7 @@ fun ClienteCard (cliente: Cliente){
 @Preview
 @Composable
 private fun ClienteCardPreview(){
-    ClienteCard(Cliente())
+    ClienteCard(Cliente(), clienteApi = null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -209,14 +295,14 @@ fun  BarraDeTitulo(modifier: Modifier = Modifier){
 }
 
 @Composable
-private fun BarraDeNavegacao (modifier: Modifier = Modifier){
+private fun BarraDeNavegacao (navController: NavController?){
     NavigationBar (
         containerColor = MaterialTheme
             .colorScheme.primary
     ){
         NavigationBarItem(
             selected = false,
-            onClick = {},
+            onClick = {navController!!.navigate("Home")},
             icon = {
                 Icon(
                     imageVector = Icons.Default.Home,
@@ -270,10 +356,12 @@ private fun BarraDeNavegacao (modifier: Modifier = Modifier){
 }
 
 @Composable
-fun BotaoFlutuante(modifier: Modifier = Modifier){
+fun BotaoFlutuante(navController: NavHostController?) {
 
     FloatingActionButton(
-        onClick = {}
+        onClick = {
+            navController!!.navigate("Form")
+        }
     ) {
         Icon(
             imageVector = Icons.Default.Add,
@@ -287,7 +375,8 @@ fun BotaoFlutuante(modifier: Modifier = Modifier){
 @Composable
 private fun BotaoFlutuantePreview(){
     MyApplicationTheme {
-        BotaoFlutuante()
+        val navController = null
+        BotaoFlutuante(navController)
     }
 }
 
@@ -295,7 +384,8 @@ private fun BotaoFlutuantePreview(){
 @Composable
 private fun BarraDeNavegacaoPreview(){
     MyApplicationTheme {
-        BarraDeNavegacao()
+        val navController = null
+        BarraDeNavegacao(navController)
     }
 }
 
